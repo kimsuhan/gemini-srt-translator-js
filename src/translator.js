@@ -43,9 +43,10 @@ export class GeminiSRTTranslator {
     this.modelName = options.modelName || 'gemini-3-flash-preview';
     this.batchSize = options.batchSize || 300;
     this.batchNumber = 0;
+    this.maxBatchRetries = options.maxBatchRetries || 2;
     
     // Model configuration
-    this.streaming = options.streaming !== undefined ? options.streaming : true;
+    this.streaming = options.streaming !== undefined ? options.streaming : false;
     this.thinking = options.thinking !== undefined ? options.thinking : true;
     this.thinkingBudget = options.thinkingBudget || 2048;
     this.temperature = options.temperature || null;
@@ -73,6 +74,8 @@ export class GeminiSRTTranslator {
     this.tokenCount = null;
     this.translatedBatch = [];
     this.totalLines = 0;
+    this.skippedBatchCount = 0;
+    this.skippedLineCount = 0;
     
     setColorMode(this.useColors);
     
@@ -129,22 +132,42 @@ export class GeminiSRTTranslator {
         
         // Process batch
         this.batchNumber++;
-        const result = await this._processBatch(batch, context, batchStartLine);
+        let result = await this._processBatch(batch, context, batchStartLine);
+        let batchSucceeded = !!result;
         
-        if (result) {
-          context = result.context;
-          
-          // Save progress
-          await this._saveProgress(currentLine);
-          
-          // Add delay for free quota
-          if (this.freeQuota && currentLine <= this.totalLines) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        if (!batchSucceeded) {
+          for (let retry = 1; retry <= this.maxBatchRetries; retry++) {
+            const backoffMs = retry * 1000;
+            this._emitWarning(
+              `Batch ${this.batchNumber} failed. Retrying ${retry}/${this.maxBatchRetries} in ${backoffMs / 1000}s...`
+            );
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            
+            result = await this._processBatch(batch, context, batchStartLine);
+            if (result) {
+              batchSucceeded = true;
+              break;
+            }
           }
+        }
+        
+        if (batchSucceeded) {
+          context = result.context;
         } else {
-          // Batch failed, retry or skip
-          warningWithProgress('Batch processing failed, retrying...');
-          currentLine = batchStartLine; // Reset to retry
+          const batchEndLine = Math.min(currentLine - 1, this.totalLines);
+          this.skippedBatchCount++;
+          this.skippedLineCount += batch.length;
+          this._emitWarning(
+            `Batch ${this.batchNumber} skipped after ${this.maxBatchRetries} retries (lines ${batchStartLine}-${batchEndLine} kept as original).`
+          );
+        }
+        
+        // Save progress even if this batch was skipped.
+        await this._saveProgress(currentLine);
+        
+        // Add delay for free quota
+        if (this.freeQuota && currentLine <= this.totalLines) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
       
@@ -152,6 +175,11 @@ export class GeminiSRTTranslator {
       await this._saveSubtitles(subtitles);
       await this._clearProgress();
       
+      if (this.skippedBatchCount > 0) {
+        this._emitWarning(
+          `Translation completed with skips: ${this.skippedBatchCount} batches / ${this.skippedLineCount} lines.`
+        );
+      }
       success('Translation completed successfully!');
       return true;
       
@@ -227,26 +255,21 @@ export class GeminiSRTTranslator {
       let thoughts = '';
       
       if (this.streaming) {
-        response = await this._processStreamingResponse(client, config, messages, startLine);
-        thoughts = response.thoughts;
-      } else {
-        const result = await client.generateContent({
-          ...config,
-          contents: messages
-        });
-        
-        const responseText = result.response.text();
-        if (this.thinking && responseText.includes('<thinking>')) {
-          const parts = responseText.split('</thinking>');
-          if (parts.length > 1) {
-            thoughts = parts[0].replace('<thinking>', '').trim();
-            response = { text: parts[1].trim(), thoughts };
+        try {
+          response = await this._processStreamingResponse(client, config, messages, startLine);
+          thoughts = response.thoughts;
+        } catch (streamErr) {
+          if (this._isStreamParseError(streamErr)) {
+            this._emitWarning('Streaming parse failed. Retrying this batch without streaming...');
+            response = await this._processNonStreamingResponse(client, config, messages);
+            thoughts = response.thoughts;
           } else {
-            response = { text: responseText, thoughts: '' };
+            throw streamErr;
           }
-        } else {
-          response = { text: responseText, thoughts: '' };
         }
+      } else {
+        response = await this._processNonStreamingResponse(client, config, messages);
+        thoughts = response.thoughts;
       }
       
       // Save thoughts if enabled
@@ -292,67 +315,101 @@ export class GeminiSRTTranslator {
   }
   
   async _processStreamingResponse(client, config, messages, currentStartLine) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let fullResponse = '';
-        let thoughts = '';
-        let inThinking = false;
-        
-        const stream = await client.generateContentStream({
-          ...config,
-          contents: messages
-        });
-        
-        for await (const chunk of stream.stream) {
-          const chunkText = chunk.text();
-          
-          if (this.thinking) {
-            if (chunkText.includes('<thinking>')) {
-              inThinking = true;
-            }
-            
-            if (inThinking) {
-              if (chunkText.includes('</thinking>')) {
-                const parts = chunkText.split('</thinking>');
-                thoughts += parts[0].replace('<thinking>', '');
-                fullResponse += parts[1] || '';
-                inThinking = false;
-              } else {
-                thoughts += chunkText;
-              }
-            } else {
-              fullResponse += chunkText;
-            }
-          } else {
-            fullResponse += chunkText;
-          }
-          
-          // Update progress
-          if (this.progressCallback) {
-            this.progressCallback.progressBar(currentStartLine - 1, this.totalLines, 'Processing...');
-          } else {
-            progressBar(
-              currentStartLine - 1,
-              this.totalLines,
-              30,
-              'Translating: ',
-              '',
-              '',
-              null,
-              false,
-              true,
-              false,
-              false,
-              fullResponse.length
-            );
-          }
+    let fullResponse = '';
+    let thoughts = '';
+    let inThinking = false;
+    
+    const stream = await client.generateContentStream({
+      ...config,
+      contents: messages
+    });
+    
+    for await (const chunk of stream.stream) {
+      const chunkText = chunk.text();
+      
+      if (this.thinking) {
+        if (chunkText.includes('<thinking>')) {
+          inThinking = true;
         }
         
-        resolve({ text: fullResponse, thoughts });
-      } catch (err) {
-        reject(err);
+        if (inThinking) {
+          if (chunkText.includes('</thinking>')) {
+            const parts = chunkText.split('</thinking>');
+            thoughts += parts[0].replace('<thinking>', '');
+            fullResponse += parts[1] || '';
+            inThinking = false;
+          } else {
+            thoughts += chunkText;
+          }
+        } else {
+          fullResponse += chunkText;
+        }
+      } else {
+        fullResponse += chunkText;
       }
+      
+      // Update progress
+      if (this.progressCallback) {
+        this.progressCallback.progressBar(currentStartLine - 1, this.totalLines, 'Processing...');
+      } else {
+        progressBar(
+          currentStartLine - 1,
+          this.totalLines,
+          30,
+          'Translating: ',
+          '',
+          '',
+          null,
+          false,
+          true,
+          false,
+          false,
+          fullResponse.length
+        );
+      }
+    }
+    
+    return { text: fullResponse, thoughts };
+  }
+
+  async _processNonStreamingResponse(client, config, messages) {
+    const result = await client.generateContent({
+      ...config,
+      contents: messages
     });
+    
+    const responseText = result.response.text();
+    if (this.thinking && responseText.includes('<thinking>')) {
+      const parts = responseText.split('</thinking>');
+      if (parts.length > 1) {
+        const thoughts = parts[0].replace('<thinking>', '').trim();
+        return { text: parts[1].trim(), thoughts };
+      }
+    }
+    
+    return { text: responseText, thoughts: '' };
+  }
+
+  _isStreamParseError(err) {
+    if (!err || !err.message) return false;
+    return (
+      err.message.includes('Failed to parse stream') ||
+      err.message.includes('parse stream')
+    );
+  }
+
+  _emitWarning(message) {
+    warningWithProgress(message);
+    if (this.progressCallback && typeof this.progressCallback.warning === 'function') {
+      this.progressCallback.warning(message);
+    }
+  }
+
+  getTranslationStats() {
+    return {
+      skippedBatchCount: this.skippedBatchCount,
+      skippedLineCount: this.skippedLineCount
+    };
   }
   
   async _processTranslatedLines(responseText, originalBatch) {

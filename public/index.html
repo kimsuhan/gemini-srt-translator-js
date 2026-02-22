@@ -18,12 +18,18 @@
                 <h2>API 설정</h2>
                 <div class="form-group">
                     <label for="apiKey">Gemini API Key *</label>
-                    <input type="password" id="apiKey" placeholder="AIza..." required>
+                    <div class="password-field">
+                        <input type="password" id="apiKey" placeholder="AIza..." required>
+                        <button type="button" class="visibility-toggle" data-target="apiKey" aria-label="Show API key"></button>
+                    </div>
                     <small>Google AI Studio에서 발급받은 API 키를 입력하세요</small>
                 </div>
                 <div class="form-group">
                     <label for="apiKey2">백업 API Key (선택)</label>
-                    <input type="password" id="apiKey2" placeholder="AIza...">
+                    <div class="password-field">
+                        <input type="password" id="apiKey2" placeholder="AIza...">
+                        <button type="button" class="visibility-toggle" data-target="apiKey2" aria-label="Show backup API key"></button>
+                    </div>
                     <small>할당량 관리를 위한 두 번째 API 키</small>
                 </div>
             </div>
@@ -92,7 +98,7 @@
                     <div class="form-row">
                         <div class="form-group checkbox-group">
                             <label>
-                                <input type="checkbox" id="streaming" checked>
+                                <input type="checkbox" id="streaming">
                                 스트리밍 응답 사용
                             </label>
                         </div>

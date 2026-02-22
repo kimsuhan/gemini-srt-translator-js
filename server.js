@@ -12,6 +12,27 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+function isStreamParseError(error) {
+  const message = error?.message || '';
+  return message.includes('Failed to parse stream') || message.includes('parse stream');
+}
+
+process.on('unhandledRejection', (reason) => {
+  if (isStreamParseError(reason)) {
+    console.warn('[warn] Unhandled stream parse rejection captured:', reason.message);
+    return;
+  }
+  console.error('[error] Unhandled rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  if (isStreamParseError(error)) {
+    console.warn('[warn] Uncaught stream parse exception captured:', error.message);
+    return;
+  }
+  console.error('[error] Uncaught exception:', error);
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -151,6 +172,9 @@ app.post('/api/translate', upload.single('file'), async (req, res) => {
       error: (message) => {
         broadcastProgress({ type: 'error', message });
       },
+      warning: (message) => {
+        broadcastProgress({ type: 'warning', message });
+      },
       info: (message) => {
         broadcastProgress({ type: 'info', message });
       }
@@ -165,7 +189,7 @@ app.post('/api/translate', upload.single('file'), async (req, res) => {
       outputFile,
       modelName: model || 'gemini-3-flash-preview',
       batchSize: parseInt(batchSize) || 30,
-      streaming: streaming !== 'false',
+      streaming: streaming === 'true',
       thinking: thinking === 'true',
       thinkingBudget: parseInt(thinkingBudget) || 2048,
       temperature: parseFloat(temperature) || undefined,
@@ -180,6 +204,10 @@ app.post('/api/translate', upload.single('file'), async (req, res) => {
     const success = await translator.translate();
 
     if (success) {
+      const stats = translator.getTranslationStats ? translator.getTranslationStats() : {
+        skippedBatchCount: 0,
+        skippedLineCount: 0
+      };
       // Read the translated file
       const translatedContent = fs.readFileSync(outputFile, 'utf8');
       
@@ -191,7 +219,9 @@ app.post('/api/translate', upload.single('file'), async (req, res) => {
       broadcastProgress({
         type: 'complete',
         success: true,
-        translatedContent
+        translatedContent,
+        skippedBatchCount: stats.skippedBatchCount,
+        skippedLineCount: stats.skippedLineCount
       });
     } else {
       throw new Error('Translation failed');
