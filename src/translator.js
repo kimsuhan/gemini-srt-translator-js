@@ -40,7 +40,7 @@ export class GeminiSRTTranslator {
     this.outputFile = options.outputFile || null;
     this.startLine = options.startLine || 1;
     this.description = options.description || null;
-    this.modelName = options.modelName || 'gemini-2.5-flash-preview-05-20';
+    this.modelName = options.modelName || 'gemini-3-flash-preview';
     this.batchSize = options.batchSize || 300;
     this.batchNumber = 0;
     
@@ -168,15 +168,18 @@ export class GeminiSRTTranslator {
       // The Google Generative AI SDK doesn't have a listModels method
       // We'll return a hardcoded list of known models
       return [
-        'gemini-2.5-flash-preview-05-20',
-        'gemini-2.5-flash-thinking-latest',
-        'gemini-2.5-pro-preview-05-20',
-        'gemini-2.5-pro-thinking-latest',
-        'gemini-2.0-flash-exp',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-1.5-pro',
-        'gemini-1.0-pro'
+        // Latest aliases (auto-updated by Google).
+        'gemini-flash-latest',
+        // Gemini 3 preview models.
+        'gemini-3-flash-preview',
+        'gemini-3-pro-preview',
+        // Current stable Gemini 2.5 models.
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.5-pro',
+        // Previous generation models (compatibility fallback).
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite'
       ];
     } catch (err) {
       error(`Error fetching models: ${err.message}`);
@@ -531,8 +534,13 @@ export class GeminiSRTTranslator {
   }
   
   _isThinkingCompatible() {
-    const thinkingModels = ['gemini-2.5-flash-thinking', 'gemini-2.5-pro-thinking'];
-    return thinkingModels.some(model => this.modelName.includes(model));
+    // Gemini 2.5+ and Gemini 3 models support thinking.
+    return (
+      this.modelName === 'gemini-flash-latest' ||
+      this.modelName.startsWith('gemini-3-') ||
+      this.modelName.startsWith('gemini-2.5-') ||
+      this.modelName.includes('thinking')
+    );
   }
   
   async _validateTokenSize(batch, context) {
