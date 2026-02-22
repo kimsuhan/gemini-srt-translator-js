@@ -30,10 +30,10 @@ npm install gemini-srt-translator
 ### GitHub에서 설치
 ```bash
 # GitHub에서 직접 설치
-npm install -g github:DHKIM0207/gemini-srt-translator-js
+npm install -g github:kimsuhan/gemini-srt-translator-js
 
 # 또는 git clone 후 설치
-git clone https://github.com/DHKIM0207/gemini-srt-translator-js.git
+git clone https://github.com/kimsuhan/gemini-srt-translator-js.git
 cd gemini-srt-translator-js
 npm install
 npm link  # 전역 CLI 사용을 위해
@@ -58,7 +58,7 @@ gemini-srt-translator translate \
   -o subtitle_kr.srt \
   -s 100 \
   -d "Technical documentary about AI" \
-  -m gemini-2.0-flash-exp \
+  -m gemini-3-flash-preview \
   -b 250 \
   --temperature 0.3 \
   --top-p 0.95 \
@@ -102,7 +102,7 @@ gst.inputFile = "subtitle.srt";
 gst.outputFile = "subtitle_kr.srt";
 gst.startLine = 100; // 100번째 줄부터 시작
 gst.description = "Technical documentary about AI";
-gst.modelName = "gemini-2.0-flash-exp";
+gst.modelName = "gemini-3-flash-preview";
 gst.batchSize = 250;
 gst.streaming = true;
 gst.thinking = true;
@@ -194,13 +194,14 @@ Google Gemini AI가 지원하는 모든 언어로 번역할 수 있습니다. �
 
 ## 사용 가능한 모델
 
-- `gemini-2.0-flash-exp` - 최신 고속 모델 (기본값)
-- `gemini-1.5-flash` - 빠르고 효율적
-- `gemini-1.5-pro` - 더 정확함
-- `gemini-2.5-flash-preview-05-20` - thinking 기능이 있는 프리뷰
-- `gemini-2.5-flash-thinking-latest` - thinking 모드 포함
-- `gemini-2.5-pro-preview-05-20` - Pro 프리뷰
-- `gemini-2.5-pro-thinking-latest` - thinking 모드가 있는 Pro
+- `gemini-3-flash-preview` - 최신 프리뷰 모델 (기본값)
+- `gemini-flash-latest` - 자동 업데이트 Flash 별칭
+- `gemini-3-pro-preview` - 최고 품질 프리뷰 모델
+- `gemini-2.5-flash` - 안정형 고속 모델
+- `gemini-2.5-flash-lite` - 안정형 저비용 고속 모델
+- `gemini-2.5-pro` - 안정형 고정확도 모델
+- `gemini-2.0-flash` - 호환용 폴백 모델
+- `gemini-2.0-flash-lite` - 호환용 저비용 폴백
 
 ## 주의사항
 

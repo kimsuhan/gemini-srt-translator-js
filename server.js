@@ -163,7 +163,7 @@ app.post('/api/translate', upload.single('file'), async (req, res) => {
       targetLanguage,
       inputFile,
       outputFile,
-      modelName: model || 'gemini-2.0-flash-exp',
+      modelName: model || 'gemini-3-flash-preview',
       batchSize: parseInt(batchSize) || 30,
       streaming: streaming !== 'false',
       thinking: thinking === 'true',

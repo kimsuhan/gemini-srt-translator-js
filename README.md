@@ -6,7 +6,7 @@ Google Gemini AI를 사용하여 SRT 자막 파일을 번역하는 웹 애플리
 
 ### 1. 프로젝트 클론
 ```bash
-git clone https://github.com/DHKIM0207/gemini-srt-translator-js.git
+git clone https://github.com/kimsuhan/gemini-srt-translator-js.git
 cd gemini-srt-translator-js
 ```
 
@@ -117,4 +117,4 @@ MIT License
 
 ---
 
-💡 **도움이 필요하신가요?** [이슈](https://github.com/DHKIM0207/gemini-srt-translator-js/issues)를 생성해주세요!
+💡 **도움이 필요하신가요?** [이슈](https://github.com/kimsuhan/gemini-srt-translator-js/issues)를 생성해주세요!

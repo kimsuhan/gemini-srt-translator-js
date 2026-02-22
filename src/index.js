@@ -139,8 +139,8 @@ async function listModels() {
  * // (Optional) Additional description of the translation task
  * gst.description = "This subtitle is from a TV Series called 'Friends'.";
  * 
- * // (Optional) Model name to use for translation (default: "gemini-2.5-flash-preview-05-20")
- * gst.modelName = "gemini-2.5-flash-preview-05-20";
+ * // (Optional) Model name to use for translation (default: "gemini-3-flash-preview")
+ * gst.modelName = "gemini-3-flash-preview";
  * 
  * // (Optional) Batch size for translation (default: 300)
  * gst.batchSize = 300;

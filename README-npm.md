@@ -30,10 +30,10 @@ npm install gemini-srt-translator
 ### Install from GitHub
 ```bash
 # Install directly from GitHub
-npm install -g github:DHKIM0207/gemini-srt-translator-js
+npm install -g github:kimsuhan/gemini-srt-translator-js
 
 # Or clone and install
-git clone https://github.com/DHKIM0207/gemini-srt-translator-js.git
+git clone https://github.com/kimsuhan/gemini-srt-translator-js.git
 cd gemini-srt-translator-js
 npm install
 npm link  # For global CLI usage
@@ -58,7 +58,7 @@ gemini-srt-translator translate \
   -o subtitle_kr.srt \
   -s 100 \
   -d "Technical documentary about AI" \
-  -m gemini-2.0-flash-exp \
+  -m gemini-3-flash-preview \
   -b 250 \
   --temperature 0.3 \
   --top-p 0.95 \
@@ -102,7 +102,7 @@ gst.inputFile = "subtitle.srt";
 gst.outputFile = "subtitle_kr.srt";
 gst.startLine = 100; // Start from line 100
 gst.description = "Technical documentary about AI";
-gst.modelName = "gemini-2.0-flash-exp";
+gst.modelName = "gemini-3-flash-preview";
 gst.batchSize = 250;
 gst.streaming = true;
 gst.thinking = true;
@@ -194,13 +194,14 @@ Supports all languages available in Google Gemini AI, including:
 
 ## Available Models
 
-- `gemini-2.0-flash-exp` - Latest, fast model (default)
-- `gemini-1.5-flash` - Fast and efficient
-- `gemini-1.5-pro` - More accurate
-- `gemini-2.5-flash-preview-05-20` - Preview with thinking capability
-- `gemini-2.5-flash-thinking-latest` - With thinking mode
-- `gemini-2.5-pro-preview-05-20` - Pro preview
-- `gemini-2.5-pro-thinking-latest` - Pro with thinking mode
+- `gemini-3-flash-preview` - Latest preview model (default)
+- `gemini-flash-latest` - Rolling latest Flash alias
+- `gemini-3-pro-preview` - Highest quality preview model
+- `gemini-2.5-flash` - Stable high-speed model
+- `gemini-2.5-flash-lite` - Stable low-cost fast model
+- `gemini-2.5-pro` - Stable high-accuracy model
+- `gemini-2.0-flash` - Compatibility fallback
+- `gemini-2.0-flash-lite` - Compatibility low-cost fallback
 
 ## Notes
 
